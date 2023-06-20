@@ -1,6 +1,11 @@
 
 SELECT 
-	location, date, total_cases, new_cases, total_deaths, population
+	location, 
+	date, 
+	total_cases, 
+	new_cases, 
+	total_deaths, 
+	population
 FROM 
 	covid_project.dbo.covid_deaths
 WHERE 
@@ -11,7 +16,11 @@ ORDER BY 1,2
 -- Total Cases vs Total Deaths
 
 SELECT
-	location, date, total_cases, total_deaths, (CAST(total_deaths AS float)/total_cases)*100 AS death_percentage
+	location, 
+	date, 
+	total_cases, 
+	total_deaths, 
+	(CAST(total_deaths AS float)/total_cases)*100 AS death_percentage
 FROM 
 	covid_project.dbo.covid_deaths
 WHERE 
@@ -19,10 +28,14 @@ WHERE
 ORDER BY 1,2
 
 
--- Total Case vs Population
+-- Total Cases vs Population
 
 SELECT
-	location, date, population, total_cases, (CAST(total_cases AS float)/population)*100 AS infected_rate
+	location, 
+	date, 
+	population, 
+	total_cases, 
+	(CAST(total_cases AS float)/population)*100 AS infected_rate
 FROM 
 	covid_project.dbo.covid_deaths
 WHERE
@@ -33,10 +46,14 @@ ORDER BY 1,2
 -- Max Total Case Vs. Population
 
 SELECT
-	location, population, MAX(total_cases) AS max_total_cases, (CAST(MAX(total_cases) AS float)/population)*100 AS infected_rate
+	location, 
+	population, 
+	MAX(total_cases) AS max_total_cases, 
+	(CAST(MAX(total_cases) AS float)/population)*100 AS infected_rate
 FROM
 	covid_project.dbo.covid_deaths
-WHERE continent IS NOT NULL
+WHERE 
+	continent IS NOT NULL
 GROUP BY
 	location, population
 ORDER BY 
@@ -46,7 +63,8 @@ ORDER BY
 -- Countries with Highest Death Count
 
 SELECT
-	location, MAX(total_deaths) AS total_death_count
+	location, 
+	MAX(total_deaths) AS total_death_count
 FROM 
 	covid_project.dbo.covid_deaths
 WHERE 
@@ -56,18 +74,22 @@ GROUP BY
 ORDER BY 
 	total_death_count DESC
 
+	
 -- Continents with Highest Death Count
 
 SELECT 
-	continent, SUM(max_total_deaths) AS max_total_deaths_by_continent
+	continent, 
+	SUM(max_total_deaths) AS max_total_deaths_by_continent
 FROM (
-    SELECT 
-		continent, location, MAX(total_deaths) AS max_total_deaths
-    FROM 
+	SELECT 
+		continent, 
+		location, 
+		MAX(total_deaths) AS max_total_deaths
+ 	FROM 
 		covid_project.dbo.covid_deaths
 	WHERE 
 		continent IS NOT NULL
-    GROUP BY 
+	GROUP BY 
 		continent, location
 	) AS subquery
 GROUP BY 
@@ -75,10 +97,12 @@ GROUP BY
 ORDER BY 
 	max_total_deaths_by_continent DESC
 
+	
 -- Second way to do the same thing, easier to use
 
 SELECT
-	location, MAX(total_deaths) AS total_death_count
+	location, 
+	MAX(total_deaths) AS total_death_count
 FROM 
 	covid_project.dbo.covid_deaths
 WHERE 
@@ -88,6 +112,7 @@ GROUP BY
 ORDER BY 
 	total_death_count DESC
 
+	
 -- Global Numbers
 
 SELECT
@@ -120,49 +145,63 @@ FROM
 WHERE 
 	continent IS NOT NULL
 
--- Total population vs. vaccination
+	
+-- Total population vs. vaccinations
 
 SELECT 
-	cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations
-	, SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
+	cd.continent, 
+	cd.location, 
+	cd.date, 
+	cd.population, 
+	cv.new_vaccinations,
+	SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
 FROM 
 	covid_project.dbo.covid_deaths cd
 JOIN 
 	covid_project.dbo.covid_vaccinations cv
-	ON cd.location = cv.location AND cd.date = cv.date
+	ON cd.location = cv.location 
+	AND cd.date = cv.date
 WHERE 
 	cd.continent IS NOT NULL
 ORDER BY
 	2,3
 
+	
 -- Use CTE
 
 WITH pop_vs_vac (continet, location, date, population, new_vaccinations, rolling_new_vaccinations)
 AS 
 (
-SELECT 
-	cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations
-	, SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
-FROM 
-	covid_project.dbo.covid_deaths cd
-JOIN 
-	covid_project.dbo.covid_vaccinations cv
-	ON cd.location = cv.location AND cd.date = cv.date
-WHERE 
-	cd.continent IS NOT NULL
-
+	SELECT 
+		cd.continent, 
+		cd.location, 
+		cd.date, 
+		cd.population, 
+		cv.new_vaccinations,
+		SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
+	FROM 
+		covid_project.dbo.covid_deaths cd
+	JOIN 
+		covid_project.dbo.covid_vaccinations cv
+		ON cd.location = cv.location 
+		AND cd.date = cv.date
+	WHERE 
+		cd.continent IS NOT NULL
 )
 
-SELECT *, (CONVERT(float,rolling_new_vaccinations)/population)*100
-FROM pop_vs_vac
-ORDER BY 2,3
+	
+SELECT 
+	*, CONVERT(float,rolling_new_vaccinations)/population)*100
+FROM 
+	pop_vs_vac
 
+	
 -- Create temp table
 
 DROP TABLE IF EXISTS #percent_pop_vaccinated
 CREATE TABLE #percent_pop_vaccinated
 (
-	continent nvarchar(255),
+continent nvarchar(255),
 location nvarchar(255),
 date date,
 population numeric,
@@ -172,19 +211,26 @@ rolling_new_vaccinations numeric
 
 INSERT INTO #percent_pop_vaccinated
 	SELECT 
-	cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations
-	, SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
-FROM 
-	covid_project.dbo.covid_deaths cd
-JOIN 
-	covid_project.dbo.covid_vaccinations cv
-	ON cd.location = cv.location AND cd.date = cv.date
-WHERE 
-	cd.continent IS NOT NULL
+		cd.continent, 
+		cd.location, 
+		cd.date, 
+		cd.population, 
+		cv.new_vaccinations,
+		SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
+	FROM 
+		covid_project.dbo.covid_deaths cd
+	JOIN 
+		covid_project.dbo.covid_vaccinations cv
+		ON cd.location = cv.location 
+		AND cd.date = cv.date
+	WHERE 
+		cd.continent IS NOT NULL
 
+	
 SELECT *, (rolling_new_vaccinations/population)*100
-FROM #percent_pop_vaccinated
-ORDER BY 2,3
+FROM 
+	#percent_pop_vaccinated
+
 
 
 -- Creating view to store data for later visualizations
@@ -195,14 +241,19 @@ GO
 
 CREATE VIEW percent_pop_vaccinated AS
 
-SELECT 
-	cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations
-	, SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
-FROM 
-	covid_project.dbo.covid_deaths cd
-JOIN 
-	covid_project.dbo.covid_vaccinations cv
-	ON cd.location = cv.location AND cd.date = cv.date
-WHERE 
-	cd.continent IS NOT NULL
+	SELECT 
+		cd.continent,
+		cd.location, 
+		cd.date, 
+		cd.population, 
+		cv.new_vaccinations,
+		SUM(CAST(cv.new_vaccinations AS bigint)) OVER (Partition by cd.location ORDER BY cd.location, cd.date) AS rolling_new_vaccinations
+	FROM 
+		covid_project.dbo.covid_deaths cd
+	JOIN 
+		covid_project.dbo.covid_vaccinations cv
+		ON cd.location = cv.location 
+		AND cd.date = cv.date
+	WHERE 
+		cd.continent IS NOT NULL
 
